@@ -53,4 +53,12 @@ public class PlaylistController {
         playlistService.deletePlaylist(id);
         return ResponseEntity.ok(Map.of("message", "Playlist deleted successfully"));
     }
+
+    @PutMapping("/{id}/rename")
+    public ResponseEntity<Playlist> renamePlaylist(
+            @PathVariable Long id,
+            @RequestParam String name) {
+        Playlist playlist = playlistService.renamePlaylist(id, name);
+        return ResponseEntity.ok(playlist);
+    }
 }

@@ -65,6 +65,13 @@ public class PlaylistService {
         playlistRepository.deleteById(id);
     }
 
+    public Playlist renamePlaylist(Long id, String newName) {
+        Playlist playlist = playlistRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Playlist not found"));
+        playlist.setName(newName);
+        return playlistRepository.save(playlist);
+    }
+
     private PlaylistDto convertToDto(Playlist playlist) {
         List<TrackDto> tracks = playlistItemRepository
                 .findByPlaylistIdOrderByPositionAsc(playlist.getId()).stream()
