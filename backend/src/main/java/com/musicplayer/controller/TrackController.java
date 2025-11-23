@@ -77,9 +77,12 @@ public class TrackController {
     @PutMapping("/{id}")
     public ResponseEntity<Track> updateTrack(
             @PathVariable Long id,
-            @RequestParam String title,
-            @RequestParam String artist,
-            @RequestParam String album) {
+            @RequestBody Map<String, String> payload) { // Змінено на @RequestBody
+
+        String title = payload.get("title");
+        String artist = payload.get("artist");
+        String album = payload.get("album");
+
         return ResponseEntity.ok(trackService.updateTrack(id, title, artist, album));
     }
 

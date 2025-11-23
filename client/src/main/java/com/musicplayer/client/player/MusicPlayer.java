@@ -1,249 +1,252 @@
 package com.musicplayer.client.player;
 
-import com.musicplayer.client.strategy.PlaybackStrategy;
-import com.musicplayer.client.strategy.SequentialStrategy;
+import com.musicplayer.client.strategy.*;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
-import javafx.scene.media.AudioEqualizer;
-import javafx.scene.media.EqualizerBand;
 import javafx.util.Duration;
+
 import java.io.File;
 import java.util.*;
+import java.util.function.Consumer;
 
 public class MusicPlayer {
     private MediaPlayer mediaPlayer;
-    private PlayerState currentState;
-    private List<PlaybackObserver> observers = new ArrayList<>();
     private List<TrackInfo> queue = new ArrayList<>();
-    private int currentTrackIndex = -1;
-    private TrackInfo currentTrack;
-    private PlaybackStrategy playbackStrategy = new SequentialStrategy();
-    private double volume = 0.5;
-    private double[] equalizerValues = new double[8]; // 8 bands
+    private int currentTrackIndex = 0;
+
+    private PlayerState state;
+    private PlaybackStrategy playbackStrategy;
+    private final List<PlaybackObserver> observers = new ArrayList<>();
+
+    private final Stack<Integer> history = new Stack<>();
+    private final double[] equalizerGains = new double[10];
 
     public MusicPlayer() {
-        this.currentState = new StoppedState();
+        this.state = new StoppedState();
+        this.playbackStrategy = new SequentialStrategy();
     }
 
-    // State management
+    // STATE
     public void setState(PlayerState state) {
-        this.currentState = state;
-        notifyStateChanged(state.getState());
+        this.state = state;
+        notifyObservers(o -> o.onPlaybackStateChanged(state.getState()));
     }
 
-    public PlayerState getCurrentState() {
-        return currentState;
+    public void play() { state.play(this); }
+    public void pause() { state.pause(this); }
+    public void stop() { state.stop(this); }
+
+    public void playPause() {
+        if (state.getState() == PlaybackState.PLAYING) pause();
+        else play();
     }
 
-    // Observer pattern methods
-    public void addObserver(PlaybackObserver observer) {
-        observers.add(observer);
+    public void startPlayback() { if (mediaPlayer != null) mediaPlayer.play(); }
+    public void pausePlayback() { if (mediaPlayer != null) mediaPlayer.pause(); }
+    public void resumePlayback() { if (mediaPlayer != null) mediaPlayer.play(); }
+    public void stopPlayback() {
+        if (mediaPlayer != null) mediaPlayer.stop();
+        notifyObservers(o -> o.onPositionChanged(0));
     }
 
-    public void removeObserver(PlaybackObserver observer) {
-        observers.remove(observer);
-    }
 
-    private void notifyStateChanged(PlaybackState state) {
-        for (PlaybackObserver observer : observers) {
-            observer.onPlaybackStateChanged(state);
-        }
-    }
-
-    private void notifyTrackChanged(TrackInfo track) {
-        for (PlaybackObserver observer : observers) {
-            observer.onTrackChanged(track);
-        }
-    }
-
-    private void notifyPositionChanged(double position) {
-        for (PlaybackObserver observer : observers) {
-            observer.onPositionChanged(position);
-        }
-    }
-
-    private void notifyVolumeChanged(double volume) {
-        for (PlaybackObserver observer : observers) {
-            observer.onVolumeChanged(volume);
-        }
-    }
-
-    // Playback control (called by states)
-    void startPlayback() {
-        if (currentTrack == null) return;
-
-        try {
-            String mediaSource;
-            if ("local".equals(currentTrack.getSource())) {
-                File file = new File(currentTrack.getLocalPath());
-                mediaSource = file.toURI().toString();
-            } else {
-                String serverUrl = com.musicplayer.client.config.AppConfig.getInstance().getServerUrl();
-                mediaSource = serverUrl + "/api/tracks/" + currentTrack.getId() + "/stream";
-            }
-
-            Media media = new Media(mediaSource);
-            mediaPlayer = new MediaPlayer(media);
-            mediaPlayer.setVolume(volume);
-
-            // Apply equalizer settings
-            applyEqualizerSettings();
-
-            mediaPlayer.currentTimeProperty().addListener((obs, oldTime, newTime) -> {
-                notifyPositionChanged(newTime.toSeconds());
-            });
-
-            mediaPlayer.setOnEndOfMedia(() -> {
-                playNext();
-            });
-
-            mediaPlayer.play();
-            notifyTrackChanged(currentTrack);
-        } catch (Exception e) {
-            System.err.println("Error starting playback: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    void pausePlayback() {
-        if (mediaPlayer != null) {
-            mediaPlayer.pause();
-        }
-    }
-
-    void resumePlayback() {
-        if (mediaPlayer != null) {
-            mediaPlayer.play();
-        }
-    }
-
-    void stopPlayback() {
-        if (mediaPlayer != null) {
-            mediaPlayer.stop();
-            mediaPlayer.dispose();
-            mediaPlayer = null;
-        }
-        currentTrack = null;
-        notifyTrackChanged(null);
-    }
-
-    // Public control methods (delegate to state)
-    public void play() {
-        currentState.play(this);
-    }
-
-    public void pause() {
-        currentState.pause(this);
-    }
-
-    public void stop() {
-        currentState.stop(this);
+    public void playQueue(List<TrackInfo> newQueue, int startIndex) {
+        this.queue = new ArrayList<>(newQueue);
+        this.currentTrackIndex = startIndex;
+        this.history.clear();
+        playTrackInternal(startIndex, false);
     }
 
     public void playTrack(TrackInfo track) {
-        stop();
-        this.currentTrack = track;
-        this.currentTrackIndex = queue.indexOf(track);
-        play();
+        playQueue(Collections.singletonList(track), 0);
     }
 
-    public void playNext() {
-        TrackInfo nextTrack = playbackStrategy.getNextTrack(queue, currentTrackIndex);
-        if (nextTrack != null) {
-            currentTrackIndex = queue.indexOf(nextTrack);
-            playTrack(nextTrack);
-        } else {
+    public void updateQueue(List<TrackInfo> newQueue) {
+        if (queue.isEmpty()) {
+            this.queue = new ArrayList<>(newQueue);
+            return;
+        }
+        Long currentId = queue.get(currentTrackIndex).getId();
+        this.queue = new ArrayList<>(newQueue);
+        for (int i = 0; i < queue.size(); i++) {
+            if (queue.get(i).getId().equals(currentId)) {
+                this.currentTrackIndex = i;
+                break;
+            }
+        }
+    }
+
+    // PLAYBACK
+    private void playTrackInternal(int index, boolean pushToHistory) {
+        if (queue.isEmpty() || index < 0 || index >= queue.size()) return;
+
+        if (mediaPlayer != null) {
+            mediaPlayer.stop();
+            mediaPlayer.dispose();
+        }
+
+        if (pushToHistory) history.push(currentTrackIndex);
+        currentTrackIndex = index;
+        TrackInfo track = queue.get(index);
+
+        try {
+            Media media = createMedia(track);
+            mediaPlayer = new MediaPlayer(media);
+            mediaPlayer.setVolume(0.5);
+
+            applyEqualizerSettings();
+
+            mediaPlayer.setOnReady(() -> {
+                setState(new PlayingState());
+                mediaPlayer.play();
+                notifyObservers(o -> o.onTrackChanged(track));
+            });
+
+            mediaPlayer.setOnEndOfMedia(this::onTrackFinished);
+            mediaPlayer.currentTimeProperty().addListener((obs, oldVal, newVal) ->
+                    notifyObservers(o -> o.onPositionChanged(newVal.toSeconds()))
+            );
+
+        } catch (Exception e) {
+            System.err.println("Error loading media: " + e.getMessage());
+            setState(new StoppedState());
+        }
+    }
+
+    private Media createMedia(TrackInfo track) {
+        if ("local".equals(track.getSource())) {
+            return new Media(new File(track.getLocalPath()).toURI().toString());
+        }
+        return new Media("http://localhost:8080/api/tracks/" + track.getId() + "/stream");
+    }
+
+    private void applyEqualizerSettings() {
+        if (mediaPlayer.getAudioEqualizer() == null) return;
+        var bands = mediaPlayer.getAudioEqualizer().getBands();
+        for (int i = 0; i < Math.min(bands.size(), equalizerGains.length); i++) {
+            bands.get(i).setGain(equalizerGains[i]);
+        }
+    }
+
+    private void onTrackFinished() {
+        if (queue.isEmpty()) return;
+        int nextIndex = playbackStrategy.getNextIndex(currentTrackIndex, queue.size());
+
+        if (nextIndex == -1) {
             stop();
+            currentTrackIndex = queue.size() - 1;
+        } else {
+            playTrackInternal(nextIndex, true);
+        }
+    }
+
+    // NAV
+    public void playNext() {
+        if (queue.isEmpty()) return;
+
+        // Manual Override: Кнопка Next ігнорує Repeat One
+        if (playbackStrategy instanceof RepeatOneStrategy) {
+            int next = (currentTrackIndex + 1) % queue.size();
+            playTrackInternal(next, true);
+            return;
+        }
+
+        int nextIndex = playbackStrategy.getNextIndex(currentTrackIndex, queue.size());
+        if (nextIndex == -1) {
+            stop();
+            currentTrackIndex = queue.size() - 1;
+        } else {
+            playTrackInternal(nextIndex, true);
         }
     }
 
     public void playPrevious() {
-        if (currentTrackIndex > 0) {
-            currentTrackIndex--;
-            playTrack(queue.get(currentTrackIndex));
+        if (queue.isEmpty()) return;
+
+        if (mediaPlayer != null && mediaPlayer.getCurrentTime().toSeconds() > 3) {
+            mediaPlayer.seek(Duration.ZERO);
+            return;
         }
+
+        if (playbackStrategy.isShuffle() && !history.isEmpty()) {
+            playTrackInternal(history.pop(), false);
+            return;
+        }
+
+        if (playbackStrategy instanceof RepeatOneStrategy) {
+            int prev = currentTrackIndex - 1;
+            if (prev < 0) prev = queue.size() - 1;
+            playTrackInternal(prev, false);
+            return;
+        }
+
+        if (state.getState() == PlaybackState.STOPPED) {
+            playTrackInternal(currentTrackIndex, false);
+            return;
+        }
+
+        playTrackInternal(playbackStrategy.getPreviousIndex(currentTrackIndex, queue.size()), false);
     }
 
-    public void setVolume(double volume) {
-        this.volume = volume;
-        if (mediaPlayer != null) {
-            mediaPlayer.setVolume(volume);
-        }
-        notifyVolumeChanged(volume);
+    public void setPlaybackStrategy(PlaybackStrategy strategy) {
+        this.playbackStrategy = strategy;
+        if (!strategy.isShuffle()) history.clear();
+    }
+
+    public void playLocalFile(File file) {
+        playTrack(TrackInfo.builder()
+                .title(file.getName())
+                .artist("")
+                .source("local")
+                .localPath(file.getAbsolutePath())
+                .build());
     }
 
     public void seek(double seconds) {
-        if (mediaPlayer != null) {
-            mediaPlayer.seek(Duration.seconds(seconds));
-        }
+        if (mediaPlayer != null) mediaPlayer.seek(Duration.seconds(seconds));
     }
 
-    // Equalizer methods
-    public void setEqualizerBand(int bandIndex, double gain) {
-        if (bandIndex >= 0 && bandIndex < equalizerValues.length) {
-            equalizerValues[bandIndex] = gain;
-            applyEqualizerSettings();
-        }
+    public void setVolume(double volume) {
+        if (mediaPlayer != null) mediaPlayer.setVolume(volume);
     }
 
-    public double getEqualizerBandValue(int bandIndex) {
-        if (bandIndex >= 0 && bandIndex < equalizerValues.length) {
-            return equalizerValues[bandIndex];
-        }
-        return 0;
+    public double getDuration() {
+        return mediaPlayer != null ? mediaPlayer.getTotalDuration().toSeconds() : 0;
     }
 
-    private void applyEqualizerSettings() {
-        if (mediaPlayer != null) {
-            AudioEqualizer equalizer = mediaPlayer.getAudioEqualizer();
-            if (equalizer != null) {
-                equalizer.setEnabled(true);
-                List<EqualizerBand> bands = equalizer.getBands();
-                for (int i = 0; i < Math.min(bands.size(), equalizerValues.length); i++) {
-                    bands.get(i).setGain(equalizerValues[i]);
-                }
+    public TrackInfo getCurrentTrack() {
+        return (queue.isEmpty() || currentTrackIndex >= queue.size()) ? null : queue.get(currentTrackIndex);
+    }
+
+    public PlayerState getCurrentState() { return state; }
+
+    public String getStrategyName() {
+        if (playbackStrategy instanceof ShuffleStrategy) return "SHUFFLE";
+        if (playbackStrategy instanceof RepeatOneStrategy) return "ONE";
+        if (playbackStrategy instanceof RepeatAllStrategy) return "ALL";
+        return "NONE";
+    }
+
+    // Equalizer
+    public void setEqualizerBand(int index, double gain) {
+        if (index >= 0 && index < equalizerGains.length) {
+            equalizerGains[index] = gain;
+            if (mediaPlayer != null && mediaPlayer.getAudioEqualizer() != null) {
+                var bands = mediaPlayer.getAudioEqualizer().getBands();
+                if (index < bands.size()) bands.get(index).setGain(gain);
             }
         }
     }
 
-    // Strategy pattern methods
-    public void setPlaybackStrategy(PlaybackStrategy strategy) {
-        this.playbackStrategy = strategy;
+    public double getEqualizerBandValue(int index) {
+        return (index >= 0 && index < equalizerGains.length) ? equalizerGains[index] : 0.0;
     }
 
-    public PlaybackStrategy getPlaybackStrategy() {
-        return playbackStrategy;
-    }
+    // Observer
+    public void addObserver(PlaybackObserver o) { observers.add(o); }
+    public void removeObserver(PlaybackObserver o) { observers.remove(o); }
 
-    // Queue management
-    public void setQueue(List<TrackInfo> queue) {
-        this.queue = new ArrayList<>(queue);
-        this.currentTrackIndex = -1;
-    }
-
-    public void addToQueue(TrackInfo track) {
-        queue.add(track);
-    }
-
-    public List<TrackInfo> getQueue() {
-        return new ArrayList<>(queue);
-    }
-
-    public TrackInfo getCurrentTrack() {
-        return currentTrack;
-    }
-
-    public double getCurrentPosition() {
-        if (mediaPlayer != null) {
-            return mediaPlayer.getCurrentTime().toSeconds();
-        }
-        return 0;
-    }
-
-    public double getDuration() {
-        if (mediaPlayer != null && mediaPlayer.getTotalDuration() != null) {
-            return mediaPlayer.getTotalDuration().toSeconds();
-        }
-        return 0;
+    private void notifyObservers(Consumer<PlaybackObserver> action) {
+        observers.forEach(action);
     }
 }

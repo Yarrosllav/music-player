@@ -18,6 +18,7 @@ public class MusicPlayerClient extends Application {
             controller.shutdown();
             System.exit(0);
         });
+        primaryStage.setMaximized(true);
         primaryStage.show();
     }
 

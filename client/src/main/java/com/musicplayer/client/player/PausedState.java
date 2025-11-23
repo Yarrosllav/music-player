@@ -9,7 +9,6 @@ public class PausedState implements PlayerState {
 
     @Override
     public void pause(MusicPlayer player) {
-        // Already paused
     }
 
     @Override

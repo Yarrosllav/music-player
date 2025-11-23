@@ -3,7 +3,6 @@ package com.musicplayer.client.player;
 public class PlayingState implements PlayerState {
     @Override
     public void play(MusicPlayer player) {
-        // Already playing
     }
 
     @Override

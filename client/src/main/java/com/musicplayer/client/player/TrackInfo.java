@@ -12,6 +12,6 @@ public class TrackInfo {
     private String artist;
     private String album;
     private Long durationMs;
-    private String source; // "server" or "local"
-    private String localPath; // for local files
+    private String source;
+    private String localPath;
 }

@@ -6,10 +6,21 @@ import java.util.List;
 
 public class RepeatAllStrategy implements PlaybackStrategy {
     @Override
-    public TrackInfo getNextTrack(List<TrackInfo> queue, int currentIndex) {
-        if (queue == null || queue.isEmpty()) return null;
-        int nextIndex = (currentIndex + 1) % queue.size();
-        return queue.get(nextIndex);
+    public int getNextIndex(int currentIndex, int listSize) {
+        // Якщо кінець - йдемо на 0
+        return (currentIndex + 1) % listSize;
+    }
+
+    @Override
+    public int getPreviousIndex(int currentIndex, int listSize) {
+        // Якщо початок - йдемо в кінець
+        if (currentIndex - 1 < 0) return listSize - 1;
+        return currentIndex - 1;
+    }
+
+    @Override
+    public boolean isShuffle() {
+        return false;
     }
 
     @Override

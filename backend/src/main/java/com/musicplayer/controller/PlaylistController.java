@@ -61,4 +61,13 @@ public class PlaylistController {
         Playlist playlist = playlistService.renamePlaylist(id, name);
         return ResponseEntity.ok(playlist);
     }
+
+    @PutMapping("/{id}/tracks/order")
+    public ResponseEntity<?> reorderTracks(
+            @PathVariable Long id,
+            @RequestBody List<Long> trackIds) {
+
+        playlistService.updateTrackOrder(id, trackIds);
+        return ResponseEntity.ok(Map.of("message", "Playlist order updated"));
+    }
 }

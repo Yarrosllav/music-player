@@ -1,23 +1,28 @@
 package com.musicplayer.client.strategy;
 
-import com.musicplayer.client.player.TrackInfo;
-
 import java.util.*;
 
 public class ShuffleStrategy implements PlaybackStrategy {
     private final Random random = new Random();
 
     @Override
-    public TrackInfo getNextTrack(List<TrackInfo> queue, int currentIndex) {
-        if (queue == null || queue.isEmpty()) return null;
-        if (queue.size() == 1) return queue.get(0);
-
-        int nextIndex;
+    public int getNextIndex(int currentIndex, int listSize) {
+        if (listSize <= 1) return 0;
+        int next;
         do {
-            nextIndex = random.nextInt(queue.size());
-        } while (nextIndex == currentIndex);
+            next = random.nextInt(listSize);
+        } while (next == currentIndex);
+        return next;
+    }
 
-        return queue.get(nextIndex);
+    @Override
+    public int getPreviousIndex(int currentIndex, int listSize) {
+        return -1;
+    }
+
+    @Override
+    public boolean isShuffle() {
+        return true;
     }
 
     @Override

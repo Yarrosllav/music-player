@@ -10,4 +10,5 @@ public interface PlaylistItemRepository extends JpaRepository<PlaylistItem, Long
     List<PlaylistItem> findByPlaylistIdOrderByPositionAsc(Long playlistId);
     void deleteByPlaylistIdAndTrackId(Long playlistId, Long trackId);
     void deleteByPlaylistId(Long playlistId);
+    void deleteByTrackId(Long trackId);
 }

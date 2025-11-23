@@ -6,13 +6,24 @@ import java.util.List;
 
 public class SequentialStrategy implements PlaybackStrategy {
     @Override
-    public TrackInfo getNextTrack(List<TrackInfo> queue, int currentIndex) {
-        if (queue == null || queue.isEmpty()) return null;
-        int nextIndex = currentIndex + 1;
-        if (nextIndex < queue.size()) {
-            return queue.get(nextIndex);
+    public int getNextIndex(int currentIndex, int listSize) {
+        if (currentIndex + 1 >= listSize) {
+            return -1; // Кінець списку (зупинка)
         }
-        return null; // End of queue
+        return currentIndex + 1;
+    }
+
+    @Override
+    public int getPreviousIndex(int currentIndex, int listSize) {
+        if (currentIndex - 1 < 0) {
+            return 0; // Впираємось в початок
+        }
+        return currentIndex - 1;
+    }
+
+    @Override
+    public boolean isShuffle() {
+        return false;
     }
 
     @Override

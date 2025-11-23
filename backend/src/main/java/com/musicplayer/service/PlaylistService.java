@@ -65,6 +65,33 @@ public class PlaylistService {
         playlistRepository.deleteById(id);
     }
 
+
+    @Transactional
+    public void updateTrackOrder(Long playlistId, List<Long> trackIdsInOrder) {
+        // 1. Отримуємо всі записи для цього плейлиста
+        // (Можна використати існуючий метод репозиторію findByPlaylistIdOrderByPositionAsc)
+        List<PlaylistItem> items = playlistItemRepository.findByPlaylistIdOrderByPositionAsc(playlistId);
+
+        // 2. Створюємо мапу для швидкого пошуку запису по ID трека
+        // Key: TrackID, Value: PlaylistItem
+        Map<Long, PlaylistItem> itemMap = items.stream()
+                .collect(Collectors.toMap(PlaylistItem::getTrackId, item -> item));
+
+        // 3. Проходимо по отриманому списку ID і оновлюємо позиції
+        for (int i = 0; i < trackIdsInOrder.size(); i++) {
+            Long trackId = trackIdsInOrder.get(i);
+            PlaylistItem item = itemMap.get(trackId);
+
+            if (item != null) {
+                // Встановлюємо нову позицію (0, 1, 2...)
+                item.setPosition(i);
+            }
+        }
+
+        // 4. Зберігаємо всі зміни одним махом
+        playlistItemRepository.saveAll(items);
+    }
+
     public Playlist renamePlaylist(Long id, String newName) {
         Playlist playlist = playlistRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Playlist not found"));

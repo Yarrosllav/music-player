@@ -11,12 +11,10 @@ public class StoppedState implements PlayerState {
 
     @Override
     public void pause(MusicPlayer player) {
-        // Cannot pause when stopped
     }
 
     @Override
     public void stop(MusicPlayer player) {
-        // Already stopped
     }
 
     @Override

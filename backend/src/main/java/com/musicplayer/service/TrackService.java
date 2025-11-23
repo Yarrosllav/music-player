@@ -2,6 +2,7 @@ package com.musicplayer.service;
 
 import com.musicplayer.dto.TrackDto;
 import com.musicplayer.model.Track;
+import com.musicplayer.repository.PlaylistItemRepository;
 import com.musicplayer.repository.TrackRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 public class TrackService {
     private final TrackRepository trackRepository;
     private final StorageService storageService;
+    private final PlaylistItemRepository playlistItemRepository;
 
     public List<TrackDto> getAllTracks() {
         return trackRepository.findAll().stream()
@@ -53,17 +55,23 @@ public class TrackService {
     }
 
     public Track updateTrack(Long id, String title, String artist, String album) {
-        Track track = getTrackById(id);
-        track.setTitle(title);
-        track.setArtist(artist);
-        track.setAlbum(album);
-        return trackRepository.save(track);
+        Track track = getTrackById(id); // Використовуємо існуючий метод для пошуку
+
+        // Оновлюємо поля, якщо прийшли нові значення
+        if (title != null && !title.isEmpty()) track.setTitle(title);
+        if (artist != null) track.setArtist(artist);
+        if (album != null) track.setAlbum(album);
+
+        return trackRepository.save(track); // Обов'язково зберігаємо зміни в БД
     }
 
     public void deleteTrack(Long id) {
         Track track = getTrackById(id);
-        storageService.delete(track.getStoragePath());
-        trackRepository.deleteById(id);
+        playlistItemRepository.deleteByTrackId(id);
+        if (track.getStoragePath() != null) {
+            storageService.delete(track.getStoragePath());
+        }
+        trackRepository.delete(track);
     }
 
     private TrackDto convertToDto(Track track) {

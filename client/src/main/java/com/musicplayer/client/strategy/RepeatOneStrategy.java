@@ -6,9 +6,18 @@ import java.util.List;
 
 public class RepeatOneStrategy implements PlaybackStrategy {
     @Override
-    public TrackInfo getNextTrack(List<TrackInfo> queue, int currentIndex) {
-        if (queue == null || queue.isEmpty()) return null;
-        return queue.get(currentIndex); // Repeat current track
+    public int getNextIndex(int currentIndex, int listSize) {
+        return currentIndex; // Завжди повертає поточний
+    }
+
+    @Override
+    public int getPreviousIndex(int currentIndex, int listSize) {
+        return currentIndex;
+    }
+
+    @Override
+    public boolean isShuffle() {
+        return false;
     }
 
     @Override
