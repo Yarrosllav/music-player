@@ -8,5 +8,4 @@ import java.util.List;
 @Repository
 public interface PlaylistRepository extends JpaRepository<Playlist, Long> {
     List<Playlist> findByUserOwnerId(Long userId);
-    List<Playlist> findByIsPublicTrue();
 }

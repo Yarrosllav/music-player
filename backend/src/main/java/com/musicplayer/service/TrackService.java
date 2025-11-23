@@ -6,9 +6,9 @@ import com.musicplayer.repository.PlaylistItemRepository;
 import com.musicplayer.repository.TrackRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
-import java.nio.file.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -55,16 +55,16 @@ public class TrackService {
     }
 
     public Track updateTrack(Long id, String title, String artist, String album) {
-        Track track = getTrackById(id); // Використовуємо існуючий метод для пошуку
+        Track track = getTrackById(id);
 
-        // Оновлюємо поля, якщо прийшли нові значення
         if (title != null && !title.isEmpty()) track.setTitle(title);
         if (artist != null) track.setArtist(artist);
         if (album != null) track.setAlbum(album);
 
-        return trackRepository.save(track); // Обов'язково зберігаємо зміни в БД
+        return trackRepository.save(track);
     }
 
+    @Transactional
     public void deleteTrack(Long id) {
         Track track = getTrackById(id);
         playlistItemRepository.deleteByTrackId(id);

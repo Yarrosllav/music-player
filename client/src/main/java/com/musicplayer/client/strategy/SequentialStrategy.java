@@ -1,14 +1,10 @@
 package com.musicplayer.client.strategy;
 
-import com.musicplayer.client.player.TrackInfo;
-
-import java.util.List;
-
 public class SequentialStrategy implements PlaybackStrategy {
     @Override
     public int getNextIndex(int currentIndex, int listSize) {
         if (currentIndex + 1 >= listSize) {
-            return -1; // Кінець списку (зупинка)
+            return -1;
         }
         return currentIndex + 1;
     }
@@ -16,7 +12,7 @@ public class SequentialStrategy implements PlaybackStrategy {
     @Override
     public int getPreviousIndex(int currentIndex, int listSize) {
         if (currentIndex - 1 < 0) {
-            return 0; // Впираємось в початок
+            return 0;
         }
         return currentIndex - 1;
     }

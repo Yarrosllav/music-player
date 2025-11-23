@@ -1,5 +1,7 @@
 package com.musicplayer.client.controller;
 
+import atlantafx.base.theme.Styles;
+import atlantafx.base.theme.Tweaks;
 import com.musicplayer.client.config.AppConfig;
 import com.musicplayer.client.facade.MusicPlayerFacade;
 import com.musicplayer.client.player.*;
@@ -33,10 +35,13 @@ public class MainController implements PlaybackObserver {
     private ListView<String> playlistView;
     private TextField searchField;
 
+
     // State & Layout control
     private VBox sidebar;
     private TableColumn<TrackInfo, Void> actionsCol;
     private String currentPlaylistName = null;
+    // Десь на початку класу, де інші змінні
+    private TrackInfo currentlyPlayingTrack = null;
     private boolean isDraggingSlider = false;
 
     private final ObservableList<TrackInfo> tracks;
@@ -76,10 +81,10 @@ public class MainController implements PlaybackObserver {
         Button searchButton = new Button("Search");
         searchButton.setOnAction(e -> searchTracks());
 
-        Button loadAllButton = new Button("Show All Tracks");
+        Button loadAllButton = new Button("All Tracks");
         loadAllButton.setOnAction(e -> loadAllTracks());
 
-        Button openFileButton = new Button("Play My Music");
+        Button openFileButton = new Button("My Music");
         openFileButton.setOnAction(e -> openLocalFile());
 
         uploadButton = new Button("Upload Track");
@@ -148,6 +153,26 @@ public class MainController implements PlaybackObserver {
         trackTable.setItems(tracks);
         VBox.setVgrow(trackTable, Priority.ALWAYS);
 
+        trackTable.getStyleClass().addAll(Styles.STRIPED, Styles.INTERACTIVE, Tweaks.EDGE_TO_EDGE);
+
+        trackTable.setRowFactory(tv -> new TableRow<>() {
+            @Override
+            protected void updateItem(TrackInfo item, boolean empty) {
+                super.updateItem(item, empty);
+                setStyle("");
+                if (item == null || empty) {
+                    return;
+                }
+                if (currentlyPlayingTrack != null && Objects.equals(item.getId(), currentlyPlayingTrack.getId())) {
+                    setStyle(
+                            "-fx-background-color: -color-accent-subtle; " +
+                                    "-fx-border-color: -color-accent-fg; " +
+                                    "-fx-border-width: 0 0 1 0;"
+                    );
+                }
+            }
+        });
+
         TableColumn<TrackInfo, String> titleCol = new TableColumn<>("Title");
         titleCol.setCellValueFactory(new PropertyValueFactory<>("title"));
         titleCol.setPrefWidth(250);
@@ -187,7 +212,9 @@ public class MainController implements PlaybackObserver {
 
         currentTrackLabel = new Label("No track playing");
         currentTrackLabel.setStyle("-fx-text-fill: white; -fx-font-size: 12px;");
-        currentTrackLabel.setPrefWidth(200);
+        currentTrackLabel.setPrefWidth(250);
+
+        HBox.setMargin(currentTrackLabel, new Insets(0, 60, 0, 0));
 
         Button prevBtn = createControlBtn("⏮", 16, e -> facade.previous());
         playPauseButton = createControlBtn("▶", 20, e -> facade.playPause());
@@ -380,20 +407,31 @@ public class MainController implements PlaybackObserver {
     // CELL FACTORY
     private TableCell<TrackInfo, Void> createActionCell() {
         return new TableCell<>() {
-            private final Button upButton = createSmallBtn("↑");
-            private final Button downButton = createSmallBtn("↓");
-            private final Button addButton = createActionBtn("+", "#27ae60", "Add to playlist");
-            private final Button editButton = createActionBtn("✎", "#f39c12", "Edit metadata");
-            private final Button deleteButton = createActionBtn("🗑", "#c0392b", "Delete track");
-            private final HBox container = new HBox(5);
+            // Створюємо кнопки в єдиному стилі
+            private final Button upButton = createStyledBtn("↑");
+            private final Button downButton = createStyledBtn("↓");
+            private final Button addButton = createStyledBtn("+");
+            private final Button editButton = createStyledBtn("✎");
+            private final Button deleteButton = createStyledBtn("🗑"); // Смітник
+
+            private final HBox container = new HBox(6); // Відступ 6px між кнопками
 
             {
                 container.setAlignment(Pos.CENTER);
+
+                // --- НАЛАШТУВАННЯ ДІЙ ---
+
+                // Навігація
                 upButton.setOnAction(e -> moveTrack(getIndex(), -1));
                 downButton.setOnAction(e -> moveTrack(getIndex(), 1));
+
+                // Додавання
                 addButton.setOnAction(e -> showAddToPlaylistMenu(getTableView().getItems().get(getIndex())));
+                addButton.setTooltip(new Tooltip("Add to playlist"));
+
+                // Редагування
                 editButton.setOnAction(e -> editTrackMetadata(getTableView().getItems().get(getIndex())));
-                deleteButton.setOnAction(e -> deleteServerTrack(getTableView().getItems().get(getIndex())));
+                editButton.setTooltip(new Tooltip("Edit metadata"));
             }
 
             @Override
@@ -407,26 +445,51 @@ public class MainController implements PlaybackObserver {
                 TrackInfo track = getTableView().getItems().get(getIndex());
                 container.getChildren().clear();
 
-                if (currentPlaylistName != null) container.getChildren().addAll(upButton, downButton);
-                container.getChildren().add(addButton);
-                if (config.isAdmin() && "server".equals(track.getSource())) {
-                    container.getChildren().addAll(editButton, deleteButton);
+                // --- ЛОГІКА ВІДОБРАЖЕННЯ ---
+
+                if (currentPlaylistName != null) {
+                    // >> МИ В ПЛЕЙЛИСТІ <<
+
+                    // Кнопка видалення видаляє з плейлиста
+                    deleteButton.setOnAction(e -> removeFromPlaylistUI(track));
+                    deleteButton.setTooltip(new Tooltip("Remove from playlist"));
+
+                    // Порядок: Стрілка | Плюс | Смітник | Стрілка
+                    container.getChildren().addAll(upButton, addButton, deleteButton, downButton);
+
+                } else {
+                    // >> ЗАГАЛЬНИЙ СПИСОК <<
+
+                    // Плюс є завжди
+                    container.getChildren().add(addButton);
+
+                    // Адмінські кнопки
+                    if (config.isAdmin() && "server".equals(track.getSource())) {
+                        // Кнопка видалення видаляє з сервера
+                        deleteButton.setOnAction(e -> deleteServerTrack(track));
+                        deleteButton.setTooltip(new Tooltip("Delete form Server"));
+
+                        container.getChildren().addAll(editButton, deleteButton);
+                    }
                 }
+
                 setGraphic(container);
             }
         };
     }
 
-    private Button createSmallBtn(String text) {
+    private Button createStyledBtn(String text) {
         Button btn = new Button(text);
-        btn.setStyle("-fx-font-size: 10px; -fx-min-width: 25px;");
-        return btn;
-    }
+        // Styles.SMALL - компактний розмір
+        // Styles.BUTTON_OUTLINED - прозорий фон, тонка рамка (виглядає дорого)
+        btn.getStyleClass().addAll(Styles.SMALL, Styles.BUTTON_OUTLINED);
 
-    private Button createActionBtn(String text, String color, String tooltip) {
-        Button btn = new Button(text);
-        btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-min-width: 30px;");
-        btn.setTooltip(new Tooltip(tooltip));
+        // Фіксована ширина, щоб кнопки не скакали
+        btn.setMinWidth(32);
+        btn.setPrefWidth(32);
+
+        btn.setStyle("-fx-font-size: 16px; -fx-padding: 0; -fx-alignment: center;");
+
         return btn;
     }
 
@@ -455,7 +518,24 @@ public class MainController implements PlaybackObserver {
 
         if (logoutButton != null) {
             logoutButton.setText(isGuest ? "Login" : "Logout");
-            logoutButton.setStyle("-fx-background-color: " + (isGuest ? "#27ae60" : "#e74c3c") + "; -fx-text-fill: white;");
+            logoutButton.setText(isGuest ? "Login" : "Logout");
+
+            // 1. Очищаємо всі попередні стилі кольорів, щоб вони не змішувались
+            logoutButton.getStyleClass().removeAll(
+                    Styles.SUCCESS, Styles.DANGER, Styles.ACCENT,
+                    Styles.FLAT, Styles.BUTTON_OUTLINED
+            );
+
+            // 2. Додаємо базовий стиль "Тільки рамка"
+            logoutButton.getStyleClass().add(Styles.BUTTON_OUTLINED);
+
+            // 3. Додаємо колір рамки
+            if (isGuest) {
+                // Для Login даємо синю рамку (ACCENT - це основний колір теми, зазвичай синій)
+                logoutButton.getStyleClass().add(Styles.ACCENT);
+            } else {
+                logoutButton.getStyleClass().add(Styles.ACCENT);
+            }
         }
 
         if (statusLabel != null) {
@@ -472,7 +552,7 @@ public class MainController implements PlaybackObserver {
 
         String text = config.isLoggedIn() ? "User: " + config.getCurrentUsername() : "";
         if (currentPlaylistName != null) {
-            text += " | Viewing playlist: " + currentPlaylistName;
+            text += " | Playlist: " + currentPlaylistName;
         }
         statusLabel.setText(text);
     }
@@ -667,6 +747,24 @@ public class MainController implements PlaybackObserver {
                 showError("Delete failed: " + e.getMessage());
             }
         });
+    }
+
+    private void removeFromPlaylistUI(TrackInfo track) {
+        if (currentPlaylistName == null || track == null) return;
+
+        Long playlistId = playlistIdMap.get(currentPlaylistName);
+        if (playlistId != null) {
+            try {
+                // Видаляємо через API
+                apiService.removeTrackFromPlaylist(playlistId, track.getId());
+                // Видаляємо з таблиці візуально
+                tracks.remove(track);
+                // Оновлюємо порядок (опціонально, але бажано)
+                trackTable.refresh();
+            } catch (Exception e) {
+                showError("Failed to remove: " + e.getMessage());
+            }
+        }
     }
 
     private void showAddToPlaylistMenu(TrackInfo track) {
@@ -868,6 +966,9 @@ public class MainController implements PlaybackObserver {
     @Override
     public void onTrackChanged(TrackInfo track) {
         Platform.runLater(() -> {
+            // 1. Зберігаємо поточний трек
+            this.currentlyPlayingTrack = track;
+
             if (track != null) {
                 currentTrackLabel.setText(track.getTitle() + " - " + track.getArtist());
                 if ("local".equals(track.getSource())) enableLocalModesOnly();
@@ -876,6 +977,8 @@ public class MainController implements PlaybackObserver {
                 currentTrackLabel.setText("No track playing");
                 enableAllModes();
             }
+            trackTable.getSelectionModel().clearSelection();
+            trackTable.refresh();
         });
     }
 

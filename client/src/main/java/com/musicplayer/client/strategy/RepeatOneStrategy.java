@@ -1,13 +1,9 @@
 package com.musicplayer.client.strategy;
 
-import com.musicplayer.client.player.TrackInfo;
-
-import java.util.List;
-
 public class RepeatOneStrategy implements PlaybackStrategy {
     @Override
     public int getNextIndex(int currentIndex, int listSize) {
-        return currentIndex; // Завжди повертає поточний
+        return currentIndex;
     }
 
     @Override

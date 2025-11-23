@@ -17,7 +17,7 @@ public class ApiService {
     private final AppConfig config = AppConfig.getInstance();
     private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
 
-    // AUTH METHODS
+    // auth
 
     public Map<String, Object> register(String username, String email, String password) {
         Map<String, String> params = Map.of("username", username, "email", email, "password", password);
@@ -31,8 +31,7 @@ public class ApiService {
         return execute(request, new TypeToken<Map<String, Object>>(){}.getType());
     }
 
-    // TRACK METHODS
-
+    // track methods
     public List<TrackInfo> getAllTracks() {
         Request request = new Request.Builder().url(url("/api/tracks")).get().build();
         return executeAndParseTracks(request);
@@ -74,8 +73,7 @@ public class ApiService {
         execute(request);
     }
 
-    // PLAYLIST METHODS
-
+    // playlist methods
     public List<Map<String, Object>> getUserPlaylists(Long userId) {
         Request request = new Request.Builder().url(url("/api/playlists/user/" + userId)).get().build();
         return execute(request, new TypeToken<List<Map<String, Object>>>(){}.getType());
@@ -147,7 +145,6 @@ public class ApiService {
             String body = response.body() != null ? response.body().string() : "";
 
             if (!response.isSuccessful()) {
-                // Try to extract error message from JSON, fallback to simple message
                 String errorMsg = "Request failed: " + response.code();
                 try {
                     JsonObject json = JsonParser.parseString(body).getAsJsonObject();

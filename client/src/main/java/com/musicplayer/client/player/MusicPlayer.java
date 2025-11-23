@@ -26,24 +26,36 @@ public class MusicPlayer {
         this.playbackStrategy = new SequentialStrategy();
     }
 
-    // STATE
+    // state
     public void setState(PlayerState state) {
         this.state = state;
         notifyObservers(o -> o.onPlaybackStateChanged(state.getState()));
     }
 
-    public void play() { state.play(this); }
-    public void pause() { state.pause(this); }
-    public void stop() { state.stop(this); }
+    public void play() {
+        state.play(this);
+    }
+    public void pause() {
+        state.pause(this);
+    }
+    public void stop() {
+        state.stop(this);
+    }
 
     public void playPause() {
         if (state.getState() == PlaybackState.PLAYING) pause();
         else play();
     }
 
-    public void startPlayback() { if (mediaPlayer != null) mediaPlayer.play(); }
-    public void pausePlayback() { if (mediaPlayer != null) mediaPlayer.pause(); }
-    public void resumePlayback() { if (mediaPlayer != null) mediaPlayer.play(); }
+    public void startPlayback() {
+        if (mediaPlayer != null) mediaPlayer.play();
+    }
+    public void pausePlayback() {
+        if (mediaPlayer != null) mediaPlayer.pause();
+    }
+    public void resumePlayback() {
+        if (mediaPlayer != null) mediaPlayer.play();
+    }
     public void stopPlayback() {
         if (mediaPlayer != null) mediaPlayer.stop();
         notifyObservers(o -> o.onPositionChanged(0));
@@ -76,7 +88,7 @@ public class MusicPlayer {
         }
     }
 
-    // PLAYBACK
+    // playback
     private void playTrackInternal(int index, boolean pushToHistory) {
         if (queue.isEmpty() || index < 0 || index >= queue.size()) return;
 
@@ -93,6 +105,13 @@ public class MusicPlayer {
             Media media = createMedia(track);
             mediaPlayer = new MediaPlayer(media);
             mediaPlayer.setVolume(0.5);
+
+            mediaPlayer.setOnError(() -> {
+                System.err.println("MEDIA PLAYER ERROR: " + mediaPlayer.getError());
+                if (mediaPlayer.getError() != null) {
+                    mediaPlayer.getError().printStackTrace();
+                }
+            });
 
             applyEqualizerSettings();
 
@@ -140,11 +159,10 @@ public class MusicPlayer {
         }
     }
 
-    // NAV
+    // navigation
     public void playNext() {
         if (queue.isEmpty()) return;
 
-        // Manual Override: Кнопка Next ігнорує Repeat One
         if (playbackStrategy instanceof RepeatOneStrategy) {
             int next = (currentTrackIndex + 1) % queue.size();
             playTrackInternal(next, true);
@@ -218,7 +236,9 @@ public class MusicPlayer {
         return (queue.isEmpty() || currentTrackIndex >= queue.size()) ? null : queue.get(currentTrackIndex);
     }
 
-    public PlayerState getCurrentState() { return state; }
+    public PlayerState getCurrentState() {
+        return state;
+    }
 
     public String getStrategyName() {
         if (playbackStrategy instanceof ShuffleStrategy) return "SHUFFLE";
@@ -227,7 +247,7 @@ public class MusicPlayer {
         return "NONE";
     }
 
-    // Equalizer
+    // equalizer
     public void setEqualizerBand(int index, double gain) {
         if (index >= 0 && index < equalizerGains.length) {
             equalizerGains[index] = gain;
@@ -242,9 +262,13 @@ public class MusicPlayer {
         return (index >= 0 && index < equalizerGains.length) ? equalizerGains[index] : 0.0;
     }
 
-    // Observer
-    public void addObserver(PlaybackObserver o) { observers.add(o); }
-    public void removeObserver(PlaybackObserver o) { observers.remove(o); }
+    // observer
+    public void addObserver(PlaybackObserver o) {
+        observers.add(o);
+    }
+    public void removeObserver(PlaybackObserver o) {
+        observers.remove(o);
+    }
 
     private void notifyObservers(Consumer<PlaybackObserver> action) {
         observers.forEach(action);

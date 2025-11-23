@@ -4,6 +4,7 @@ import com.musicplayer.dto.PlaylistDto;
 import com.musicplayer.model.Playlist;
 import com.musicplayer.service.PlaylistService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
@@ -36,8 +37,13 @@ public class PlaylistController {
     public ResponseEntity<?> addTrack(
             @PathVariable Long playlistId,
             @PathVariable Long trackId) {
-        playlistService.addTrackToPlaylist(playlistId, trackId);
-        return ResponseEntity.ok(Map.of("message", "Track added to playlist"));
+        try {
+            playlistService.addTrackToPlaylist(playlistId, trackId);
+            return ResponseEntity.ok(Map.of("message", "Track added to playlist"));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", e.getMessage()));
+        }
     }
 
     @DeleteMapping("/{playlistId}/tracks/{trackId}")
@@ -66,7 +72,6 @@ public class PlaylistController {
     public ResponseEntity<?> reorderTracks(
             @PathVariable Long id,
             @RequestBody List<Long> trackIds) {
-
         playlistService.updateTrackOrder(id, trackIds);
         return ResponseEntity.ok(Map.of("message", "Playlist order updated"));
     }

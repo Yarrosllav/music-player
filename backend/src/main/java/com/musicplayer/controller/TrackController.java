@@ -1,8 +1,6 @@
 package com.musicplayer.controller;
 
-import com.musicplayer.dto.PlaylistDto;
 import com.musicplayer.dto.TrackDto;
-import com.musicplayer.model.Playlist;
 import com.musicplayer.model.Track;
 import com.musicplayer.service.*;
 import lombok.RequiredArgsConstructor;
@@ -77,7 +75,7 @@ public class TrackController {
     @PutMapping("/{id}")
     public ResponseEntity<Track> updateTrack(
             @PathVariable Long id,
-            @RequestBody Map<String, String> payload) { // Змінено на @RequestBody
+            @RequestBody Map<String, String> payload) {
 
         String title = payload.get("title");
         String artist = payload.get("artist");
@@ -92,5 +90,3 @@ public class TrackController {
         return ResponseEntity.ok(Map.of("message", "Track deleted successfully"));
     }
 }
-
-// backend/src/main/java/com/musicplayer/controller/PlaylistController.java

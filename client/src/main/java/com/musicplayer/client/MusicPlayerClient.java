@@ -1,5 +1,6 @@
 package com.musicplayer.client;
 
+import atlantafx.base.theme.PrimerDark;
 import com.musicplayer.client.controller.MainController;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -9,6 +10,7 @@ public class MusicPlayerClient extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        Application.setUserAgentStylesheet(new PrimerDark().getUserAgentStylesheet());
         MainController controller = new MainController();
         Scene scene = new Scene(controller.getRoot(), 1000, 700);
 

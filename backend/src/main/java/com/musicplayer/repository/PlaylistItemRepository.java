@@ -11,4 +11,6 @@ public interface PlaylistItemRepository extends JpaRepository<PlaylistItem, Long
     void deleteByPlaylistIdAndTrackId(Long playlistId, Long trackId);
     void deleteByPlaylistId(Long playlistId);
     void deleteByTrackId(Long trackId);
+    boolean existsByPlaylistIdAndTrackId(Long playlistId, Long trackId);
+
 }

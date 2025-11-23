@@ -20,14 +20,34 @@ public class AppConfig {
         return instance;
     }
 
-    public String getServerUrl() { return serverUrl; }
-    public void setServerUrl(String serverUrl) { this.serverUrl = serverUrl; }
-    public Long getCurrentUserId() { return currentUserId; }
-    public void setCurrentUserId(Long currentUserId) { this.currentUserId = currentUserId; }
-    public String getCurrentUsername() { return currentUsername; }
-    public void setCurrentUsername(String currentUsername) { this.currentUsername = currentUsername; }
-    public String getUserRole() { return userRole; }
-    public void setUserRole(String userRole) { this.userRole = userRole; }
-    public boolean isLoggedIn() { return currentUserId != null; }
-    public boolean isAdmin() { return "ADMIN".equals(userRole); }
+    public String getServerUrl() {
+        return serverUrl;
+    }
+    public void setServerUrl(String serverUrl) {
+        this.serverUrl = serverUrl;
+    }
+    public Long getCurrentUserId() {
+        return currentUserId;
+    }
+    public void setCurrentUserId(Long currentUserId) {
+        this.currentUserId = currentUserId;
+    }
+    public String getCurrentUsername() {
+        return currentUsername;
+    }
+    public void setCurrentUsername(String currentUsername) {
+        this.currentUsername = currentUsername;
+    }
+    public String getUserRole() {
+        return userRole;
+    }
+    public void setUserRole(String userRole) {
+        this.userRole = userRole;
+    }
+    public boolean isLoggedIn() {
+        return currentUserId != null;
+    }
+    public boolean isAdmin() {
+        return "ADMIN".equals(userRole);
+    }
 }

@@ -12,17 +12,17 @@
 
     <properties>
         <java.version>17</java.version>
-        <javafx.version>21</javafx.version>
+        <javafx.version>21.0.2</javafx.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
     <dependencies>
-        <!-- JavaFX -->
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
             <version>${javafx.version}</version>
+            <classifier>win</classifier>
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
@@ -33,30 +33,37 @@
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-media</artifactId>
             <version>${javafx.version}</version>
+            <classifier>win</classifier>
         </dependency>
 
-        <!-- HTTP Client -->
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp</artifactId>
             <version>4.12.0</version>
         </dependency>
 
-        <!-- JSON Processing -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.10.1</version>
         </dependency>
 
-        <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.30</version>
             <scope>provided</scope>
         </dependency>
+
+        <dependency>
+            <groupId>io.github.mkpaz</groupId>
+            <artifactId>atlantafx-base</artifactId>
+            <version>2.0.1</version>
+        </dependency>
+
     </dependencies>
+
+
 
     <build>
         <plugins>
